@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Football Race</title>
+    <style>
+        :root {
+            --runner-visual-width: 60px; /* Estimated visual width of runner + flag */
+            --finish-line-width: 30px;
+        }
+        body { 
+            background: #111; margin: 0; overflow: hidden; 
+            font-family: 'Arial Black', sans-serif; color: white;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh;
+        }
+
+        /* ================= MAIN WRAPPER (Mobile Shape on PC) ================= */
+        .game-viewport {
+            width: 100%;
+            max-width: 480px; /* Constrains width on PC/Tabs */
+            height: 100vh;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        }
+
+        /* ================= HEADER AREA (Mountain + Podium) ================= */
+        .header-area {
+            position: relative;
+            height: 22vh;
+            display: flex;
+            align-items: flex-end; justify-content: center; gap: 15px;
+            padding-bottom: 5px; border-bottom: 3px solid #222;
+        }
+        .podium-spot { 
+            width: 90px; display: flex; flex-direction: column; align-items: center; 
+            background: linear-gradient(to top, #111, #333); border-radius: 10px 10px 0 0;
+            position: relative; transition: all 0.5s ease;
+        }
+        .spot-1 { height: 11vh; border: 2px solid gold; transform: scale(1.1); z-index: 10; box-shadow: 0 0 25px rgba(255, 215, 0, 0.4); }
+        .spot-2 { height: 9vh; border: 2px solid silver; }
+        .spot-3 { height: 8vh; border: 2px solid #cd7f32; }
+
+        /* Blurred Mountain Background */
+        .mountain-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('/assets/mountain.jpg') no-repeat center center;
+            background-size: cover;
+            filter: blur(4px);
+            opacity: 0.8;
+            z-index: 1;
+        }
+        .podium-spot { z-index: 2; } /* Keep podium above blur */
+
+        /* ================= SETTINGS UI ========================== */
+        .settings-container {
+            position: absolute; top: 15px; left: 15px; z-index: 100;
+        }
+        .settings-icon {
+            font-size: 24px; cursor: pointer; opacity: 0.6; transition: opacity 0.3s;
+        }
+        .settings-icon:hover { opacity: 1; }
+        .settings-menu {
+            display: none; position: absolute; top: 35px; left: 0;
+            background: rgba(0,0,0,0.9); border: 1px solid #444;
+            padding: 10px; border-radius: 8px; width: 120px;
+        }
+        .settings-menu label { font-size: 12px; color: #aaa; display: block; margin-bottom: 5px; }
+        .settings-menu select {
+            width: 100%; background: #222; color: white; border: 1px solid #555;
+            padding: 5px; cursor: pointer; font-family: sans-serif;
+        }
+
+        .podium-flag { width: 40px; height: auto; margin-top: -20px; filter: drop-shadow(0 0 5px black); border-radius: 4px; }
+        .podium-wins { font-size: 14px; color: gold; font-weight: 900; }
+        .podium-label { font-size: 10px; text-transform: uppercase; margin-bottom: 2px; color: #aaa; }
+
+        /* ================= PITCH CONTAINER ========================== */
+        .race-container { 
+            flex: 1; /* Takes up all remaining space below header */
+            width: 100%; position: relative; background: #0d260d; 
+        }
+        
+        .lane {
+            position: absolute; width: 100%; height: var(--lane-h);
+            transition: top 0.6s cubic-bezier(0.4, 0, 0.2, 1), height 0.5s ease;
+            display: flex; align-items: center;
+            /* Vertical field markers */
+            background-image: linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 12.5% 100%;
+        }
+
+        /* Pitch Green Colors */
+        .lane:nth-child(odd) { background: rgba(27, 77, 27, 0.9); } 
+        .lane:nth-child(even) { background: rgba(45, 112, 45, 0.9); } 
+
+        /* Slow Moving White Lines */
+        .lane::after {
+            content: ""; position: absolute; bottom: 0; left: 0; width: 200%; height: 2px;
+            background-image: linear-gradient(to right, white 50%, transparent 50%);
+            background-size: 40px 100%; animation: lineMove 3s linear infinite; opacity: 0.2;
+        }
+        @keyframes lineMove { 0% { transform: translateX(0); } 100% { transform: translateX(-40px); } }
+
+        /* Ticker - Country Names (Subtle) */
+        .news-ticker {
+            position: absolute; width: 100%; font-size: 1.8vh; font-weight: 900; 
+            color: rgba(255,255,255,0.08); text-transform: uppercase; pointer-events: none;
+            left: 20%;
+        }
+
+        /* FINISH LINE STYLES */
+        .lane-net {
+            position: absolute; right: 0; top: 0; bottom: 0; width: 60px;
+            width: var(--finish-line-width); /* Adjusted width */
+            z-index: 10; opacity: 0.9;
+        }
+        .net-man {
+            background: url('/assets/net.png') no-repeat center right;
+            background-size: contain;
+        }
+        .net-checkered {
+            background: repeating-conic-gradient(#111 0% 25%, #eee 0% 50%) 50% / 15px 15px;
+            border-left: 2px solid white;
+        }
+
+        /* START ICON */
+        .gift-hint { 
+            position: absolute; left: 10px; z-index: 5; 
+            width: 30px; height: 30px; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        .gift-hint img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 2px black); }
+
+        /* THE RUNNER (Man running with ball) */
+        .runner {
+            position: absolute; height: 100%; display: flex; align-items: center;
+            transition: left 0.15s linear; z-index: 15;
+        }
+        .runner-img { height: 145%; filter: drop-shadow(2px 2px 5px rgba(0,0,0,0.7)); }
+        .runner-flag { width: 24px; height: auto; margin-right: 4px; border-radius: 2px; }
+
+        /* Flying gift effect */
+        .flying-gift {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            z-index: 100;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.2, 0.4, 0.3, 1);
+            filter: blur(1.5px) drop-shadow(0 0 5px rgba(255,255,0,0.4));
+        }
+    </style>
+</head>
+<body>
+    <div class="game-viewport">
+        <div class="settings-container">
+            <div class="settings-icon" onclick="toggleSettings()">⚙️</div>
+            <div class="settings-menu" id="settingsMenu">
+                <label>Racer Type:</label>
+                <select id="racerSelect" onchange="updateRacerType()">
+                    <option value="man">Running Man</option>
+                    <option value="horse">Horse</option>
+                    <option value="moto">Motorcycle</option>
+                    <option value="car">Race Car</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="header-area">
+            <div class="mountain-bg"></div>
+            
+            <div class="podium-spot spot-2">
+                <img class="podium-flag" id="f2" src="https://flagcdn.com/w80/un.png">
+                <span class="podium-wins" id="w2">Waiting...</span>
+                <span class="podium-label">🥈 2nd</span>
+            </div>
+            <div class="podium-spot spot-1">
+                <img class="podium-flag" id="f1" src="https://flagcdn.com/w80/un.png">
+                <span class="podium-wins" id="w1">Waiting...</span>
+                <span class="podium-label">🏆 1st</span>
+            </div>
+            <div class="podium-spot spot-3">
+                <img class="podium-flag" id="f3" src="https://flagcdn.com/w80/un.png">
+                <span class="podium-wins" id="w3">Waiting...</span>
+                <span class="podium-label">🥉 3rd</span>
+            </div>
+        </div>
+        
+        <div id="raceTrack" class="race-container"></div>
+
+        <!-- Blurred Secret Button for Winners Circle (Bottom Left) -->
+        <div style="position: absolute; bottom: 8px; left: 8px; width: 20px; height: 20px; background: transparent; border-radius: 50%; border: 1px solid transparent; z-index: 10000; cursor: pointer;" onclick="window.location.href='/hurray.html'"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const track = document.getElementById('raceTrack');
+        let currentRacerType = 'man';
+        let lastRaceData = null; // Store data to allow instant re-renders
+
+        let countryState = {}; // Tracks visual vs target scores for smooth increments
+        const POINTS_PER_LAP = 100; 
+
+        function toggleSettings() {
+            const menu = document.getElementById('settingsMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function updateRacerType() {
+            currentRacerType = document.getElementById('racerSelect').value;
+            document.getElementById('settingsMenu').style.display = 'none';
+            if (lastRaceData) renderRace(lastRaceData); // Update visuals immediately
+        }
+
+        const getRacerAsset = () => {
+            switch(currentRacerType) {
+                case 'horse': return '/assets/horse.gif';
+                case 'moto': return '/assets/motorcycle.gif';
+                case 'car': return '/assets/car.gif';
+                default: return '/assets/fast.gif';
+            }
+        };
+
+        socket.on('updateRace', (data) => {
+            lastRaceData = data;
+            if (data.allCountries) {
+                data.allCountries.forEach(c => {
+                    if (!countryState[c.id]) {
+                        countryState[c.id] = { visualScore: c.score, targetScore: c.score, lastVisualPos: c.currentPos, isProcessing: false };
+                    } else {
+                        countryState[c.id].targetScore = c.score;
+                    }
+                });
+            }
+            renderRace(data);
+            if (data.allCountries) {
+                data.allCountries.forEach(c => processScoreQueue(c.id));
+            }
+        });
+
+        function renderRace(data) {
+            const topRank = data.topRank || [];
+            
+            // Calculate dynamic height: 100% / number of countries
+            const laneHeight = 100 / topRank.length;
+
+            // ✅ FIXED LOGIC: Using array indices to target specific ranks
+
+            // 1st Place Logic
+            if (topRank[0]) {
+                document.getElementById('f1').src = `https://flagcdn.com/w80/${topRank[0].flag}.png`;
+                document.getElementById('w1').innerText = topRank[0].winStatus;
+            } else {
+                document.getElementById('f1').src = `https://flagcdn.com/w80/un.png`;
+                document.getElementById('w1').innerText = "Waiting...";
+            }
+
+            // 2nd Place Logic
+            if (topRank[1]) {
+                document.getElementById('f2').src = `https://flagcdn.com/w80/${topRank[1].flag}.png`;
+                document.getElementById('w2').innerText = topRank[1].winStatus;
+            } else {
+                document.getElementById('f2').src = `https://flagcdn.com/w80/un.png`;
+                document.getElementById('w2').innerText = "Waiting...";
+            }
+
+            // 3rd Place Logic
+            if (topRank[2]) {
+                document.getElementById('f3').src = `https://flagcdn.com/w80/${topRank[2].flag}.png`;
+                document.getElementById('w3').innerText = topRank[2].winStatus;
+            } else {
+                document.getElementById('f3').src = `https://flagcdn.com/w80/un.png`;
+                document.getElementById('w3').innerText = "Waiting...";
+            }
+
+            // ✅ RACE TRACKS
+            // We use topRank to determine the vertical order (1st at the top, 20th at the bottom)
+            topRank.forEach((c, index) => {
+                let lane = document.getElementById(`lane-${c.id}`);
+                
+                if (!lane) {
+                    lane = document.createElement('div');
+                    lane.className = 'lane';
+                    lane.id = `lane-${c.id}`;
+                    // Build the inner structure once when the lane is created
+                    lane.innerHTML = `
+                        <div class="news-ticker"></div>
+                        <div class="gift-hint"><img src="" alt="gift"></div>
+                        <div class="lane-net"></div>
+                        <div class="runner">
+                            <img class="runner-flag">
+                            <img src="" class="runner-img">
+                        </div>
+                    `;
+                    track.appendChild(lane); // Append the lane to the track
+                }
+
+                // Set the dynamic vertical position and height
+                lane.style.top = `${index * laneHeight}%`;
+                lane.style.height = `${laneHeight}%`;
+                lane.querySelector('.news-ticker').innerText = c.name;
+                lane.querySelector('.gift-hint img').src = c.giftIcon;
+                lane.querySelector('.runner-flag').src = `https://flagcdn.com/w40/${c.flag}.png`;
+
+                const isMan = currentRacerType === 'man';
+                const runner = lane.querySelector('.runner');
+                const runnerImg = lane.querySelector('.runner-img');
+                const net = lane.querySelector('.lane-net');
+
+                net.className = `lane-net ${isMan ? 'net-man' : 'net-checkered'}`;
+                runner.style.zIndex = isMan ? 5 : 15;
+                runnerImg.src = getRacerAsset();
+                runnerImg.style.transform = isMan ? 'scaleX(-1)' : '';
+
+                // Position Tuning: Start 45px from left (gift is at 10px)
+                // Initialize runner position if it hasn't been set or if state is new/reset
+                if (!runner.style.left || !countryState[c.id] || countryState[c.id].visualScore === undefined) {
+                    const startOffset = 45;
+                    const trackScale = 0.82;
+                    const progress = isMan ? Math.min(c.currentPos, 100) : c.currentPos;
+                    runner.style.left = `calc(${startOffset}px + ${progress * trackScale}%)`;
+                    if (countryState[c.id]) {
+                        countryState[c.id].lastVisualPos = progress; // Initialize lastVisualPos for smooth transitions
+                    }
+                }
+            });
+        }
+
+        function processScoreQueue(id) {
+            const state = countryState[id];
+            if (!state || state.isProcessing || state.visualScore >= state.targetScore) return;
+
+            state.isProcessing = true;
+            const step = () => {
+                if (state.visualScore < state.targetScore) {
+                    state.visualScore++;
+                    const pos = ((state.visualScore % POINTS_PER_LAP) / POINTS_PER_LAP) * 100;
+                    const lane = document.getElementById(`lane-${id}`);
+                    if (lane) {
+                        const runner = lane.querySelector('.runner');
+                        const giftIcon = lane.querySelector('.gift-hint img').src;
+                        if (pos < state.lastVisualPos) runner.style.transition = 'none';
+                        else runner.style.transition = 'left 0.15s linear';
+                        const startOffset = 45;
+                        const trackScale = 0.82;
+                        const isMan = currentRacerType === 'man';
+                        const progress = isMan ? Math.min(pos, 100) : pos;
+                        runner.style.left = `calc(${startOffset}px + ${progress * trackScale}%)`;
+                        state.lastVisualPos = pos;
+                        spawnFlyingGift(lane, runner, giftIcon);
+                    }
+                    const backlog = state.targetScore - state.visualScore;
+                    const delay = backlog > 5 ? 40 : 150; 
+                    setTimeout(step, delay);
+                } else {
+                    state.isProcessing = false;
+                }
+            };
+            step();
+        }
+
+        function spawnFlyingGift(lane, runner, iconUrl) {
+            const gift = document.createElement('img');
+            gift.src = iconUrl;
+            gift.className = 'flying-gift';
+            gift.style.left = '15px';
+            gift.style.top = '50%';
+            gift.style.transform = 'translateY(-50%)';
+            lane.appendChild(gift);
+            requestAnimationFrame(() => {
+                const targetX = runner.offsetLeft + 15;
+                gift.style.left = targetX + 'px';
+            });
+            setTimeout(() => {
+                gift.remove();
+                runner.style.transform = 'scale(1.2)';
+                setTimeout(() => runner.style.transform = 'scale(1)', 100);
+            }, 400);
+        }
+    </script>
+</body>
+</html>

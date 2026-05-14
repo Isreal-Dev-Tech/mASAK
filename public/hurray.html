@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winners Circle - Football Race</title>
+    <style>
+        body { 
+            background: #000; margin: 0; overflow: hidden; 
+            font-family: 'Arial Black', sans-serif; color: white;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        .game-viewport {
+            width: 100%; max-width: 480px; height: 100vh; background: #050505;
+            position: relative; overflow: hidden; display: flex; flex-direction: column;
+            box-shadow: 0 0 100px rgba(0,0,0,0.9);
+        }
+        .header-area {
+            position: relative; height: 45vh; display: flex;
+            align-items: flex-end; justify-content: center; gap: 25px;
+            padding-bottom: 20px; border-bottom: 5px solid #222;
+        }
+        .mountain-bg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('/assets/mountain.jpg') no-repeat center center;
+            background-size: cover; filter: blur(2px) brightness(0.7); opacity: 0.9; z-index: 1;
+        }
+        .podium-spot { 
+            width: 110px; display: flex; flex-direction: column; align-items: center; 
+            background: linear-gradient(to top, #000, #333); border-radius: 15px 15px 0 0;
+            position: relative; transition: all 0.5s ease; z-index: 2;
+        }
+        .spot-1 { height: 25vh; border: 3px solid gold; transform: scale(1.15); box-shadow: 0 0 40px rgba(255, 215, 0, 0.4); }
+        .spot-2 { height: 18vh; border: 3px solid silver; }
+        .spot-3 { height: 14vh; border: 3px solid #cd7f32; }
+
+        .podium-flag { width: 60px; height: auto; margin-top: -30px; filter: drop-shadow(0 0 10px black); border-radius: 8px; }
+        .podium-wins { font-size: 18px; color: gold; font-weight: 900; margin-top: 5px; }
+        .podium-name { font-size: 12px; color: #fff; text-transform: uppercase; margin-bottom: 5px; text-align: center; }
+        .podium-label { font-size: 14px; margin-bottom: 10px; opacity: 0.8; }
+
+        .results-list { 
+            flex: 1; overflow-y: auto; background: #0a0a0a; padding: 10px;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+            align-content: start;
+        }
+        .result-item {
+            display: flex; flex-direction: column; align-items: center; padding: 6px 2px;
+            background: #121212; border-radius: 6px; border-bottom: 2px solid #222;
+            text-align: center;
+        }
+        .rank-num { font-size: 10px; color: #666; margin-bottom: 2px; font-weight: bold; }
+        .rank-flag { width: 24px; height: auto; margin-bottom: 3px; border-radius: 2px; }
+        .rank-name { font-size: 8px; text-transform: uppercase; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rank-wins { font-size: 10px; color: gold; font-weight: 900; margin-top: 2px; }
+
+        .results-list::-webkit-scrollbar { width: 0; }
+    </style>
+</head>
+<body>
+    <div class="game-viewport">
+        <div class="header-area">
+            <div class="mountain-bg"></div>
+            <div class="podium-spot spot-2">
+                <img class="podium-flag" id="f2" src="https://flagcdn.com/w80/un.png">
+                <span class="podium-wins" id="w2">0</span>
+                <span class="podium-name" id="n2">-</span>
+                <span class="podium-label">🥈</span>
+            </div>
+            <div class="podium-spot spot-1">
+                <img class="podium-flag" id="f1" src="https://flagcdn.com/w80/un.png">
+                <span class="podium-wins" id="w1">0</span>
+                <span class="podium-name" id="n1">-</span>
+                <span class="podium-label">🏆</span>
+            </div>
+            <div class="podium-spot spot-3">
+                <img class="podium-flag" id="f3" src="https://flagcdn.com/w80/un.png">
+                <span class="podium-wins" id="w3">0</span>
+                <span class="podium-name" id="n3">-</span>
+                <span class="podium-label">🥉</span>
+            </div>
+        </div>
+        <div class="results-list" id="resultsList"></div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        socket.on('updateRace', (data) => {
+            const topRank = data.topRank || [];
+            if (topRank[0]) {
+                document.getElementById('f1').src = `https://flagcdn.com/w80/${topRank[0].flag}.png`;
+                document.getElementById('w1').innerText = topRank[0].wins;
+                document.getElementById('n1').innerText = topRank[0].name;
+            }
+            if (topRank[1]) {
+                document.getElementById('f2').src = `https://flagcdn.com/w80/${topRank[1].flag}.png`;
+                document.getElementById('w2').innerText = topRank[1].wins;
+                document.getElementById('n2').innerText = topRank[1].name;
+            }
+            if (topRank[2]) {
+                document.getElementById('f3').src = `https://flagcdn.com/w80/${topRank[2].flag}.png`;
+                document.getElementById('w3').innerText = topRank[2].wins;
+                document.getElementById('n3').innerText = topRank[2].name;
+            }
+            const list = document.getElementById('resultsList');
+            list.innerHTML = '';
+            
+            // Show everyone from rank 4 onwards in the grid
+            const remaining = topRank.slice(3);
+            remaining.forEach((c, index) => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+                item.innerHTML = `
+                    <div class="rank-num">#${index + 4}</div>
+                    <img class="rank-flag" src="https://flagcdn.com/w40/${c.flag}.png">
+                    <div class="rank-name">${c.name}</div>
+                    <div class="rank-wins">${c.wins}</div>
+                `;
+                list.appendChild(item);
+            });
+        });
+    </script>
+</body></html>
